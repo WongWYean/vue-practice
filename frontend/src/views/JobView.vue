@@ -38,7 +38,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/server'
 onMounted(async () => {
   try {
     const response = await axios.get(`${API_URL}/jobs/${jobId}`)
-    state.value.job = response.data
+    const job = response.data.find((job: any) => job.id === jobId)
+    state.value.job = job
   } catch (error) {
     console.error('Error fetching job', error)
   } finally {
@@ -48,13 +49,14 @@ onMounted(async () => {
 })
 
 const deleteJob = async () => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/server'
+  const toast = useToast()
+
   try {
-    const confirm = window.confirm('Are you sure you want to delete this job?')
-    if (confirm) {
-      await axios.delete(`${API_URL}/jobs/${jobId}`)
-      router.push('/jobs')
-      toast.success('Job deleted successfully!')
-    }
+    const response = await axios.delete(`${API_URL}/jobs.php?jobId=${jobId}`)
+    console.log('Job deleted:', response.data)
+    router.push('/jobs')
+    toast.success('Job deleted successfully!')
   } catch (error) {
     console.error('Error deleting job:', error)
     toast.error('Error deleting job. Please try again.')
@@ -98,21 +100,21 @@ const deleteJob = async () => {
           <div class="bg-white p-6 rounded-lg shadow-md">
             <h3 class="text-xl font-bold mb-6">Company Info</h3>
 
-            <h2 class="text-2xl">{{ state.job?.company.name }}</h2>
+            <h2 class="text-2xl">{{ state.job?.company?.name }}</h2>
 
             <p class="my-2">
-              {{ state.job?.company.description }}
+              {{ state.job?.company?.description }}
             </p>
 
             <hr class="my-4" />
 
             <h3 class="text-xl">Contact Email:</h3>
 
-            <p class="my-2 bg-green-100 p-2 font-bold">{{ state.job?.company.contactEmail }}</p>
+            <p class="my-2 bg-green-100 p-2 font-bold">{{ state.job?.company?.contactEmail }}</p>
 
             <h3 class="text-xl">Contact Phone:</h3>
 
-            <p class="my-2 bg-green-100 p-2 font-bold">{{ state.job?.company.contactPhone }}</p>
+            <p class="my-2 bg-green-100 p-2 font-bold">{{ state.job?.company?.contactPhone }}</p>
           </div>
 
           <!-- Manage -->

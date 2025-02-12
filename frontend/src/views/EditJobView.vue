@@ -64,8 +64,10 @@ const handleSubmit = async () => {
   const toast = useToast()
 
   try {
-    const response = await axios.put(`${API_URL}/jobs/${jobId}`, updatedJob)
-    router.push(`/jobs/${response.data.id}`)
+    const response = await axios.put(`${API_URL}/jobs.php?jobId=${jobId}`, updatedJob)
+    console.log('Job updated:', response.data)
+
+    router.push(`/jobs/${jobId}`)
     toast.success('Job updated successfully!')
   } catch (error) {
     console.error('Error updating job:', error)
@@ -77,7 +79,9 @@ onMounted(async () => {
   try {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/server'
     const response = await axios.get(`${API_URL}/jobs/${jobId}`)
-    state.job = response.data
+    const job = response.data.find((job: any) => job.id === jobId)
+
+    state.job = job
     form.type = state.job?.type || 'Full-Time'
     form.title = state.job?.title || ''
     form.description = state.job?.description || ''

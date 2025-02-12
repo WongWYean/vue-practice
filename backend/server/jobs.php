@@ -5,6 +5,7 @@ ini_set('display_errors', 1);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Content-Type: application/json");
 
 // Debugging: Log the request method
 error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
@@ -59,6 +60,9 @@ if ($method === 'POST') {
     $newJob["id"] = uniqid(); // Generate unique ID
     $data["jobs"][] = $newJob;
 
+    // Debugging: Log the new job data
+    error_log("New Job Data: " . print_r($newJob, true));
+
     if (file_put_contents($jsonFile, json_encode($data, JSON_PRETTY_PRINT)) === false) {
         error_log("Error: Failed to write to JSON file at " . $jsonFile);
         http_response_code(500);
@@ -72,8 +76,8 @@ if ($method === 'POST') {
 // 🟡 PUT: Update a job
 if ($method === 'PUT') {
     error_log("Handling PUT request");
-    parse_str(file_get_contents("php://input"), $params);
-    $jobId = $params["id"];
+
+    // Decode JSON input correctly
     $updatedJob = json_decode(file_get_contents("php://input"), true);
     if ($updatedJob === null) {
         error_log("Error: Failed to decode JSON input for PUT");
@@ -83,43 +87,90 @@ if ($method === 'PUT') {
         exit;
     }
 
+    // Extract job ID from URL query parameter or JSON body
+    $jobId = $_GET['jobId'] ?? $updatedJob['id'] ?? null;
+
+    if (!$jobId) {
+        error_log("Error: Job ID is missing in PUT request");
+        http_response_code(400);
+        echo json_encode(["error" => "Bad Request - Job ID is required"]);
+        exit;
+    }
+
+    error_log("Updating Job ID: " . $jobId);
+
+    // Search for the job and update it
+    $found = false;
     foreach ($data["jobs"] as &$job) {
         if ($job["id"] === $jobId) {
             $job = array_merge($job, $updatedJob);
-            if (file_put_contents($jsonFile, json_encode($data, JSON_PRETTY_PRINT)) === false) {
-                error_log("Error: Failed to write to JSON file at " . $jsonFile);
-                http_response_code(500);
-                echo json_encode(["error" => "Internal Server Error - Failed to write to JSON file"]);
-                exit;
-            }
-            echo json_encode(["message" => "Job updated successfully"]);
-            exit;
+            $found = true;
+            break;
         }
     }
 
-    echo json_encode(["error" => "Job not found"]);
-    exit;
-}
+    if (!$found) {
+        http_response_code(404);
+        echo json_encode(["error" => "Job not found"]);
+        exit;
+    }
 
-// 🔴 DELETE: Remove a job
-if ($method === 'DELETE') {
-    error_log("Handling DELETE request");
-    parse_str(file_get_contents("php://input"), $params);
-    $jobId = $params["id"];
-
-    $data["jobs"] = array_values(array_filter($data["jobs"], function ($job) use ($jobId) {
-        return $job["id"] !== $jobId;
-    }));
-
+    // Save the updated JSON file
     if (file_put_contents($jsonFile, json_encode($data, JSON_PRETTY_PRINT)) === false) {
         error_log("Error: Failed to write to JSON file at " . $jsonFile);
         http_response_code(500);
         echo json_encode(["error" => "Internal Server Error - Failed to write to JSON file"]);
         exit;
     }
-    echo json_encode(["message" => "Job deleted"]);
+
+    echo json_encode(["message" => "Job updated successfully", "job" => $updatedJob]);
     exit;
 }
+
+// 🔴 DELETE: Remove a job
+if ($method === 'DELETE') {
+    error_log("Handling DELETE request");
+
+    // Decode JSON input correctly
+    $deletedJob = json_decode(file_get_contents("php://input"), true);
+    
+    // Extract job ID from URL query parameter or JSON body
+    $jobId = $_GET['jobId'] ?? $deletedJob['id'] ?? null;
+
+    if (!$jobId) {
+        error_log("Error: Job ID is missing in DELETE request");
+        http_response_code(400);
+        echo json_encode(["error" => "Bad Request - Job ID is required"]);
+        exit;
+    }
+
+    error_log("Deleting Job ID: " . $jobId);
+
+    // Check if the job exists before deleting
+    $initialCount = count($data["jobs"]);
+    $data["jobs"] = array_values(array_filter($data["jobs"], function ($job) use ($jobId) {
+        return $job["id"] !== $jobId;
+    }));
+
+    // Check if any job was actually deleted
+    if (count($data["jobs"]) === $initialCount) {
+        http_response_code(404);
+        echo json_encode(["error" => "Job not found"]);
+        exit;
+    }
+
+    // Save the updated JSON file
+    if (file_put_contents($jsonFile, json_encode($data, JSON_PRETTY_PRINT)) === false) {
+        error_log("Error: Failed to write to JSON file at " . $jsonFile);
+        http_response_code(500);
+        echo json_encode(["error" => "Internal Server Error - Failed to write to JSON file"]);
+        exit;
+    }
+
+    echo json_encode(["message" => "Job deleted successfully"]);
+    exit;
+}
+
 
 // 🟡 If no matching method, return 405
 http_response_code(405);
