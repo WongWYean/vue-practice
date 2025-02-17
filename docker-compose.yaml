@@ -31,7 +31,6 @@ services:
       - ./backend/php.ini:/usr/local/etc/php/conf.d/xdebug.ini # Load custom php.ini
     ports:
       - "8000:80" # Apache Server
-      - "9005:9005" # Xdebug Debugging Port
 
     restart: unless-stopped
     networks:
